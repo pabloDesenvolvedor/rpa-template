@@ -38,7 +38,7 @@ class ElementoNaoEncontrado(RPAException):
 
 # Configurações de segurança do PyAutoGUI
 pyautogui.FAILSAFE = True  # Move o mouse pro canto para cancelar
-pyautogui.PAUSE = 0.1  # Pausa entre ações
+pyautogui.PAUSE = config.get("pyautogui_pause", 0.1)  # Pausa entre ações
 
 
 # =============================================================================
@@ -75,8 +75,11 @@ def _obter_imagens_da_pasta(nome_pasta: str) -> list:
 
 def _salvar_screenshot_erro(nome: str):
     """Salva screenshot quando ocorre um erro"""
+    if not config.get("salvar_screenshots_erro", True):
+        return
+
     try:
-        pasta = Path("logs/screenshots")
+        pasta = Path("screenshots")
         pasta.mkdir(parents=True, exist_ok=True)
 
         arquivo = pasta / f"erro_{nome}_{int(time.time())}.png"
@@ -122,7 +125,7 @@ def screenshot(nome: str = None):
     if nome is None:
         nome = f"screenshot_{int(time.time())}"
 
-    pasta = Path("logs/screenshots")
+    pasta = Path("screenshots")
     pasta.mkdir(parents=True, exist_ok=True)
 
     arquivo = pasta / f"{nome}.png"
@@ -134,8 +137,8 @@ def screenshot(nome: str = None):
 
 def encontrar(
     elemento: str,
-    precisao: float = 0.8,
-    tempo_maximo: float = 10,
+    precisao: float = None,
+    tempo_maximo: float = None,
     critico: bool = False,
     screenshot_antes: bool = False
 ):
@@ -162,6 +165,14 @@ def encontrar(
         # Se não encontrar, para o RPA
         posicao = encontrar("campo_obrigatorio", critico=True)
     """
+
+    # Usa valores do config.json se não foram passados
+    if precisao is None:
+        precisao = config.get("precisao_padrao", 0.8)
+    if tempo_maximo is None:
+        tempo_maximo = config.get("tempo_maximo_padrao", 10)
+
+    intervalo_busca = config.get("intervalo_busca", 0.5)
 
     # Se passou coordenadas diretas (ex: "100,200")
     coords = _parse_coordenadas(elemento)
@@ -212,7 +223,7 @@ def encontrar(
                 logger.debug(f"Erro ao buscar {imagem.name}: {e}")
 
         # Espera antes de tentar novamente
-        time.sleep(0.5)
+        time.sleep(intervalo_busca)
 
     # Não encontrou
     msg = f"'{elemento}' não encontrado após {tempo_maximo}s"
@@ -279,8 +290,8 @@ def clicar(
 
 def encontrar_e_clicar(
     elemento: str,
-    precisao: float = 0.8,
-    tempo_maximo: float = 10,
+    precisao: float = None,
+    tempo_maximo: float = None,
     critico: bool = False,
     botao: str = "left",
     cliques: int = 1,
@@ -496,7 +507,7 @@ def focar_janela(titulo: str):
 
 def aguardar_elemento(
     elemento: str,
-    precisao: float = 0.8,
+    precisao: float = None,
     tempo_maximo: float = 30,
     critico: bool = True
 ):
@@ -529,7 +540,7 @@ def aguardar_elemento(
 
 def aguardar_desaparecer(
     elemento: str,
-    precisao: float = 0.8,
+    precisao: float = None,
     tempo_maximo: float = 30
 ):
     """
@@ -550,14 +561,15 @@ def aguardar_desaparecer(
         aguardar_desaparecer("processando", tempo_maximo=120)
     """
 
+    intervalo_busca = config.get("intervalo_busca", 0.5)
     tempo_inicio = time.time()
 
     while (time.time() - tempo_inicio) < tempo_maximo:
-        # Procura rapidamente (0.5s)
+        # Procura rapidamente
         resultado = encontrar(
             elemento=elemento,
             precisao=precisao,
-            tempo_maximo=0.5,
+            tempo_maximo=intervalo_busca,
             critico=False
         )
 
@@ -565,7 +577,7 @@ def aguardar_desaparecer(
             logger.info(f"'{elemento}' desapareceu")
             return True
 
-        time.sleep(0.5)
+        time.sleep(intervalo_busca)
 
     logger.warning(f"'{elemento}' não desapareceu após {tempo_maximo}s")
     _salvar_screenshot_erro(f"nao_desapareceu_{elemento}")
