@@ -1,0 +1,8 @@
+{
+  "precisao_padrao": 0.8,
+  "tempo_maximo_padrao": 10,
+  "intervalo_busca": 0.5,
+  "pyautogui_pause": 0.1,
+  "nivel_log": "INFO",
+  "salvar_screenshots_erro": true
+}
